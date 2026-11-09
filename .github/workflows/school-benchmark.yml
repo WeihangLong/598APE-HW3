@@ -16,7 +16,6 @@ on:
         type: choice
         options:
           - main
-          - optimize/scan-bulk
           - experiment/queue-bulk
           - experiment/static-grid
         default: main

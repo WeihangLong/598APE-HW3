@@ -15,14 +15,16 @@ The default reference is the version each experiment started from:
 
 | Candidate | Reference |
 |---|---|
-| Queue, combined scan | Original baseline `15fe837` |
+| Queue | Original baseline `15fe837` |
 | Final main (includes mirroring) | Combined row bounds and batching `d6ffed5` |
 | Static grid | Dynamic-grid mirror version `73a1067` |
 
 The manual `baseline` input can override this with an exact commit or ref.
 Merged optimization branches have been deleted. Their measured commits remain
 in main's history; use the commit IDs in `docker/README.md` for those tests.
-The unmerged queue, combined-scan, and static-grid branches remain available.
+The queue and static-grid experiment branches remain available. The old
+combined-scan branch was deleted after its two features were merged separately;
+its source is still available at `d6ffed5`.
 
 ## Reusing the baseline
 
