@@ -97,13 +97,19 @@ def main():
 
     medians = {label: statistics.median(s['seconds'] for s in samples if s['version'] == label)
                for label in refs}
-    summary = ('## Sandpile performance comparison\n\n'
-               f'N={args.size}; {args.rounds} sequential runs per version. '
-               'Every measured PNG exactly matches the baseline.\n\n'
-               '| Version | Commit | Median wall time |\n|---|---|---:|\n'
-               + ''.join(f'| {label} | `{refs[label][:12]}` | {medians[label]:.4f} s |\n'
-                         for label in refs)
-               + f'\nSpeedup: **{medians["baseline"] / medians["candidate"]:.3f}x**.\n')
+    speedup = medians['baseline'] / medians['candidate']
+    summary = ('## Performance comparison\n\n'
+               '| Benchmark | main | PR branch | Speedup |\n'
+               '|---|---:|---:|---:|\n'
+               f'| Pacman {args.size} x {args.size} | '
+               f'{medians["baseline"]:.3f} s | {medians["candidate"]:.3f} s | '
+               f'**{speedup:.2f}x** |\n\n'
+               f'Times are medians of {args.rounds} sequential runs per version, '
+               'with alternating run order. Speedup = main / PR branch; '
+               'below 1x means slower. Every measured PNG exactly matches main.\n\n'
+               f'Baseline main: `{refs["baseline"]}`.\n\n'
+               f'Candidate: `{refs["candidate"]}`.\n\n'
+               f'Machine: `{metadata["hostname"]}`. Compiler: `{metadata["compiler"]}`.\n')
     (output / 'summary.md').write_text(summary)
     print(summary)
 

@@ -21,11 +21,15 @@ organization-scoped `Ringo-Leo` runner group `598ape`.
    branches do not need to be merged. Preserve their PRs for comparison.
 6. Open **Actions > School VM benchmark > Run workflow**, choose one of the
    three optimization branches, set size to `1001` and rounds to `3`.
-   Read timings in the job summary and download raw samples, machine/compiler
-   metadata, and the checked PNG from the artifact.
+   Read the automatic performance comment on that branch's open PR. Repeated
+   runs update the existing bot comment. Results also appear in the job summary;
+   download raw samples, machine/compiler metadata, and the checked PNG from
+   the artifact. No additional GitHub token is needed.
 
-PR checks use size `251` and one run per version. Manual comparisons default
-to size `1001` and three runs. Baseline and candidate use the same GCC flags
+Optimization PR checks and manual comparisons default to size `1001` and three
+runs per version. The CI-only PR uses size `251` to validate infrastructure.
+Repository variables `HW3_GRID_SIZE` and `HW3_ROUNDS` can override defaults;
+explicit manual inputs take precedence. Baseline and candidate use the same GCC flags
 and execute sequentially on the same runner, alternating run order. Keep the
 machine otherwise idle; this workflow's concurrency only serializes jobs
 from this repository, not other users' workloads.
@@ -33,6 +37,11 @@ from this repository, not other users' workloads.
 The benchmark script compiles committed sources into temporary directories.
 It does not overwrite the runner's working source, and compilation is outside
 the timed interval. A run fails if the full PNG differs from the baseline.
+
+The reference is always `origin/main` as fetched for the run, not `HEAD^`.
+The comment records both exact commit IDs, and reports main-time / PR-time.
+Only matching output produces a speedup report. If a new commit arrives during
+measurement, the older run does not overwrite the latest PR results.
 
 Local smoke test after fetching the optimization branches:
 
