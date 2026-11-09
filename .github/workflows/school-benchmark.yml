@@ -1,0 +1,79 @@
+name: School VM benchmark
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - sandpile.c
+      - stb_image_write.h
+      - scripts/benchmark.py
+      - .github/workflows/school-benchmark.yml
+  workflow_dispatch:
+    inputs:
+      candidate:
+        description: Branch to compare with main
+        type: choice
+        options:
+          - optimize/mirror-scan-bulk
+          - optimize/scan-bulk
+          - experiment/queue-bulk
+        default: optimize/mirror-scan-bulk
+      size:
+        description: Grid size (1..1001)
+        type: number
+        default: 1001
+      rounds:
+        description: Timed runs per version (1..10)
+        type: number
+        default: 3
+
+permissions:
+  contents: read
+
+# Do not overlap performance tests from this repository on the school VM.
+concurrency:
+  group: hw3-school-benchmark
+  cancel-in-progress: false
+
+jobs:
+  benchmark:
+    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: [self-hosted, linux, 598ape-hw3]
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Check required tools
+        run: |
+          gcc --version
+          python3 --version
+          git --version
+
+      - name: Compare baseline and candidate
+        env:
+          BASELINE_REF: ${{ github.event.pull_request.base.sha || 'origin/main' }}
+          CANDIDATE_REF: ${{ github.event.pull_request.head.sha || format('origin/{0}', inputs.candidate) }}
+          GRID_SIZE: ${{ inputs.size || '251' }}
+          ROUNDS: ${{ inputs.rounds || '1' }}
+        run: |
+          python3 scripts/benchmark.py \
+            --baseline "$BASELINE_REF" \
+            --candidate "$CANDIDATE_REF" \
+            --size "$GRID_SIZE" \
+            --rounds "$ROUNDS" \
+            --output "$RUNNER_TEMP/hw3-results-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
+
+      - name: Publish job summary
+        if: success()
+        run: cat "$RUNNER_TEMP/hw3-results-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT/summary.md" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload measurements and output
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: hw3-benchmark-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/hw3-results-${{ github.run_id }}-${{ github.run_attempt }}/
+          if-no-files-found: ignore
