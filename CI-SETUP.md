@@ -1,56 +1,59 @@
-# School VM runner setup
+# School VM benchmark
 
-This configuration keeps the repository under `WeihangLong/598APE-HW3`.
-It registers a repository-level runner instead of trying to reuse the
-organization-scoped `Ringo-Leo` runner group `598ape`.
+Use the repository runner registered to `WeihangLong/598APE-HW3`, with labels
+`self-hosted`, `Linux`, and `598ape-hw3`. On the school VM, leave
+`~/actions-runner-hw3/run.sh` running in tmux or as a service.
 
-1. Log in to your school VM. It needs Git, GCC, Python 3, and the GitHub
-   runner's system dependencies. Use a separate runner directory such as
-   `~/actions-runner-hw3`; do not reconfigure the HW2 runner.
-2. In the HW3 repository, open **Settings > Actions > Runners > New
-   self-hosted runner**. Choose the VM's operating system and architecture.
-3. Execute GitHub's current download and configuration commands on that VM.
-   Keep the registration token private. When asked for additional labels,
-   enter `598ape-hw3`. Name the runner `598ape-hw3` if desired.
-4. Run `./run.sh` on the VM and leave it active in a terminal multiplexer,
-   or install the runner as a service using GitHub's service instructions.
-   Confirm the runner appears **Idle** in the repository's runner settings.
-5. Review and merge this CI-only change into `main` to make manual
-   `workflow_dispatch` runs available. This adds infrastructure files only;
-   `sandpile.c` remains the instructor baseline. The three optimization
-   branches do not need to be merged. Preserve their PRs for comparison.
-6. Open **Actions > School VM benchmark > Run workflow**, choose one of the
-   three optimization branches, set size to `1001` and rounds to `3`.
-   Read the automatic performance comment on that branch's open PR. Repeated
-   runs update the existing bot comment. Results also appear in the job summary;
-   download raw samples, machine/compiler metadata, and the checked PNG from
-   the artifact. No additional GitHub token is needed.
+Open **Actions > School VM benchmark > Run workflow**, using the workflow from
+`main`. Select a candidate and size `1001`. Each candidate is timed once by
+default. Main now contains row bounds, batched toppling, and mirroring. The
+workflow has no automatic main-push benchmarks; integrating a feature does not
+silently remeasure every old experiment against a changed reference.
+Non-draft, same-repository PRs can still trigger comparisons.
 
-Merging the CI configuration into main also triggers sequential comparisons
-of all three experiment branches, posting each result to its respective PR.
-Later pushes to main that change benchmark infrastructure or source repeat
-these comparisons. The matrix is serial, and artifacts are separate per version.
+The default reference is the version each experiment started from:
 
-Optimization PR checks and manual comparisons default to size `1001` and three
-runs per version. The CI-only PR uses size `251` to validate infrastructure.
-Repository variables `HW3_GRID_SIZE` and `HW3_ROUNDS` can override defaults;
-explicit manual inputs take precedence. Baseline and candidate use the same GCC flags
-and execute sequentially on the same runner, alternating run order. Keep the
-machine otherwise idle; this workflow's concurrency only serializes jobs
-from this repository, not other users' workloads.
+| Candidate | Reference |
+|---|---|
+| Row bounds only, batched toppling only, queue, combined scan | Original baseline `15fe837` |
+| Mirroring, final main | Combined row bounds and batching `d6ffed5` |
+| Static grid | Dynamic-grid mirror version `73a1067` |
 
-The benchmark script compiles committed sources into temporary directories.
-It does not overwrite the runner's working source, and compilation is outside
-the timed interval. A run fails if the full PNG differs from the baseline.
+The manual `baseline` input can override this with an exact commit or ref.
+Original experiment branches and their measured commits remain available.
 
-The reference is always `origin/main` as fetched for the run, not `HEAD^`.
-The comment records both exact commit IDs, and reports main-time / PR-time.
-Only matching output produces a speedup report. If a new commit arrives during
-measurement, the older run does not overwrite the latest PR results.
+## Reusing the baseline
 
-Local smoke test after fetching the optimization branches:
+For single-round jobs, the runner keeps the baseline time and its complete PNG
+in `$RUNNER_TOOL_CACHE/hw3-baselines`. The first comparison measures the baseline
+once; later comparisons reuse it if the baseline source files, grid size,
+compiler version, flags, OS, hostname, CPU model, and CPU affinity match.
+Infrastructure-only commits therefore do not force another baseline run.
+Each candidate is still measured once and compared byte-for-byte with the
+baseline image. Cheap small-grid comparisons are still run for correctness.
+A lock prevents local invocations sharing this cache from overlapping.
+
+The bot comment says whether the baseline was reused and records its original
+measurement time, source commit, and CI run URL. Raw CSV rows include a `reused`
+field. An earlier cached time is not a fresh paired measurement; changing VM
+load can affect the speedup. Keep the VM otherwise idle. To force a fresh
+single-run reference, remove the runner's `hw3-baselines` directory while no
+benchmark is running. Multiple-round manual jobs bypass the baseline cache and
+alternate baseline/candidate runs. The default is one round, regardless of the
+old `HW3_ROUNDS` repository variable.
+
+Results appear in the job summary and update the matching open PR's bot comment.
+The artifact includes raw samples, metadata, and the checked candidate PNG.
+The comment records both exact commit IDs and skips stale PR heads.
+Compilation and PNG comparison are outside the timed interval. All builds use
+`gcc -O3 -g -Werror sandpile.c -lm -o sandpile.exe` in temporary directories.
+Only matching output produces a speedup report. Main contains the three successful optimizations; original experiment
+branches stay separate. The original baseline is still available at `15fe837`.
+
+Local example after fetching the branches:
 
 ```bash
-python3 scripts/benchmark.py --baseline origin/main \
-  --candidate origin/optimize/mirror-scan-bulk --size 31 --rounds 1
+python3 scripts/benchmark.py --baseline 15fe837 \
+  --candidate origin/optimize/row-bounds --size 31 --rounds 1 \
+  --baseline-cache-dir /tmp/hw3-baseline-cache --output /tmp/hw3-results
 ```
