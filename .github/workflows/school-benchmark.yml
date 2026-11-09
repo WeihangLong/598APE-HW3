@@ -23,10 +23,13 @@ on:
         description: Branch to compare with main
         type: choice
         options:
+          - optimize/row-bounds
+          - optimize/batched-toppling
           - optimize/mirror-scan-bulk
           - optimize/scan-bulk
           - experiment/queue-bulk
-        default: optimize/mirror-scan-bulk
+          - experiment/static-grid
+        default: optimize/row-bounds
       size:
         description: Grid size (1..1001)
         type: number
@@ -34,7 +37,7 @@ on:
       rounds:
         description: Timed runs per version (1..10)
         type: number
-        default: 3
+        default: 1
 
 permissions:
   contents: read
@@ -50,12 +53,12 @@ concurrency:
 
 jobs:
   benchmark:
-    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    if: github.event_name != 'pull_request' || (!github.event.pull_request.draft && github.event.pull_request.head.repo.full_name == github.repository)
     strategy:
       max-parallel: 1
       fail-fast: false
       matrix:
-        candidate: ${{ fromJSON(github.event_name == 'push' && '["optimize/mirror-scan-bulk","optimize/scan-bulk","experiment/queue-bulk"]' || '["single-comparison"]') }}
+        candidate: ${{ fromJSON(github.event_name == 'push' && '["optimize/row-bounds","optimize/batched-toppling"]' || '["single-comparison"]') }}
     runs-on: [self-hosted, Linux, 598ape-hw3]
     timeout-minutes: 180
     env:
@@ -79,13 +82,15 @@ jobs:
           # The CI-only PR is a short infrastructure smoke test. Optimization
           # PRs and manual runs benchmark the actual homework size by default.
           GRID_SIZE: ${{ inputs.size || vars.HW3_GRID_SIZE || (github.head_ref == 'ci/school-runner' && '251') || '1001' }}
-          ROUNDS: ${{ inputs.rounds || vars.HW3_ROUNDS || '3' }}
+          ROUNDS: ${{ inputs.rounds || '1' }}
+          BENCHMARK_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
           python3 scripts/benchmark.py \
             --baseline "$BASELINE_REF" \
             --candidate "$CANDIDATE_REF" \
             --size "$GRID_SIZE" \
             --rounds "$ROUNDS" \
+            --baseline-cache-dir "$RUNNER_TOOL_CACHE/hw3-baselines" \
             --output "$RUNNER_TEMP/hw3-results-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT-$BENCHMARK_INDEX"
 
       - name: Publish job summary
