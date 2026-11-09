@@ -126,6 +126,7 @@ def main():
                         elapsed = saved['seconds']
                         print(f'Reusing baseline measured at {saved["measured_at"]}.', flush=True)
                     else:
+                        print(f'Round {iteration+1}: running {label}, N={args.size} ...', flush=True)
                         elapsed, image = run(label, args.size)
                     images[label] = image
                     sample = {'round': iteration + 1, 'version': label,
