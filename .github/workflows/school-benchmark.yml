@@ -1,14 +1,6 @@
 name: School VM benchmark
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - sandpile.c
-      - stb_image_write.h
-      - scripts/benchmark.py
-      - scripts/report-performance.js
-      - .github/workflows/school-benchmark.yml
   pull_request:
     branches: [main]
     paths:
@@ -20,16 +12,21 @@ on:
   workflow_dispatch:
     inputs:
       candidate:
-        description: Branch to compare with main
+        description: Version to benchmark
         type: choice
         options:
+          - main
           - optimize/row-bounds
           - optimize/batched-toppling
           - optimize/mirror-scan-bulk
           - optimize/scan-bulk
           - experiment/queue-bulk
           - experiment/static-grid
-        default: optimize/row-bounds
+        default: main
+      baseline:
+        description: Optional baseline commit or ref (blank uses the variant's starting point)
+        type: string
+        required: false
       size:
         description: Grid size (1..1001)
         type: number
@@ -46,23 +43,15 @@ permissions:
 # Do not overlap performance tests from this repository on the school VM.
 concurrency:
   group: hw3-school-benchmark
-  # A new main deployment supersedes checks against an obsolete baseline,
-  # and CI setup updates supersede stale setup checks. Individual PR/manual
-  # benchmark requests remain serialized without cancelling one another.
-  cancel-in-progress: ${{ github.event_name == 'push' || (github.event_name == 'pull_request' && github.head_ref == 'ci/school-runner') }}
+  cancel-in-progress: false
 
 jobs:
   benchmark:
     if: github.event_name != 'pull_request' || (!github.event.pull_request.draft && github.event.pull_request.head.repo.full_name == github.repository)
-    strategy:
-      max-parallel: 1
-      fail-fast: false
-      matrix:
-        candidate: ${{ fromJSON(github.event_name == 'push' && '["optimize/row-bounds","optimize/batched-toppling"]' || '["single-comparison"]') }}
     runs-on: [self-hosted, Linux, 598ape-hw3]
     timeout-minutes: 180
     env:
-      BENCHMARK_INDEX: ${{ strategy.job-index }}
+      BENCHMARK_INDEX: 0
     steps:
       - uses: actions/checkout@v4
         with:
@@ -77,14 +66,24 @@ jobs:
 
       - name: Compare baseline and candidate
         env:
-          BASELINE_REF: origin/main
-          CANDIDATE_REF: ${{ github.event.pull_request.head.sha || format('origin/{0}', inputs.candidate || matrix.candidate) }}
+          BASELINE_REF: ${{ inputs.baseline }}
+          CANDIDATE_BRANCH: ${{ github.head_ref || inputs.candidate }}
+          CANDIDATE_REF: ${{ github.event.pull_request.head.sha || format('origin/{0}', inputs.candidate) }}
           # The CI-only PR is a short infrastructure smoke test. Optimization
           # PRs and manual runs benchmark the actual homework size by default.
           GRID_SIZE: ${{ inputs.size || vars.HW3_GRID_SIZE || (github.head_ref == 'ci/school-runner' && '251') || '1001' }}
           ROUNDS: ${{ inputs.rounds || '1' }}
           BENCHMARK_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
+          if [ -z "$BASELINE_REF" ]; then
+            case "$CANDIDATE_BRANCH" in
+              main|optimize/mirror-scan-bulk)
+                BASELINE_REF=d6ffed56b4a8fe45bd5c74d69028f46dba9d5a6c ;;
+              experiment/static-grid)
+                BASELINE_REF=73a10677459c3d641bed59aee4cf6972b404fc7b ;;
+              *) BASELINE_REF=15fe837445b8e32a15ac61fcfa388980b54d9173 ;;
+            esac
+          fi
           python3 scripts/benchmark.py \
             --baseline "$BASELINE_REF" \
             --candidate "$CANDIDATE_REF" \
@@ -101,8 +100,8 @@ jobs:
         if: success()
         uses: actions/github-script@v7
         env:
-          RESULTS_DIR: ${{ runner.temp }}/hw3-results-${{ github.run_id }}-${{ github.run_attempt }}-${{ strategy.job-index }}
-          CANDIDATE_BRANCH: ${{ inputs.candidate || matrix.candidate }}
+          RESULTS_DIR: ${{ runner.temp }}/hw3-results-${{ github.run_id }}-${{ github.run_attempt }}-0
+          CANDIDATE_BRANCH: ${{ github.head_ref || inputs.candidate }}
         with:
           script: |
             const report = require('./scripts/report-performance.js');
@@ -112,6 +111,6 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: hw3-benchmark-${{ github.run_id }}-${{ github.run_attempt }}-${{ strategy.job-index }}
-          path: ${{ runner.temp }}/hw3-results-${{ github.run_id }}-${{ github.run_attempt }}-${{ strategy.job-index }}/
+          name: hw3-benchmark-${{ github.run_id }}-${{ github.run_attempt }}-0
+          path: ${{ runner.temp }}/hw3-results-${{ github.run_id }}-${{ github.run_attempt }}-0/
           if-no-files-found: ignore

@@ -22,7 +22,7 @@ FILES = ['sandpile.c', 'stb_image_write.h']
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--baseline', default='origin/main')
+    parser.add_argument('--baseline', default='15fe837445b8e32a15ac61fcfa388980b54d9173')
     parser.add_argument('--candidate', default='HEAD')
     parser.add_argument('--size', type=int, default=1001)
     parser.add_argument('--rounds', type=int, default=1)
@@ -171,14 +171,14 @@ def main():
         timing_note = (f'Times are medians of {args.rounds} sequential runs per version, '
                        'with alternating run order. Baseline caching is disabled for multiple rounds.\n\n')
     summary = ('## Performance comparison\n\n'
-               '| Benchmark | main | PR branch | Speedup |\n'
+               '| Benchmark | Baseline | Candidate | Speedup |\n'
                '|---|---:|---:|---:|\n'
                f'| Pacman {args.size} x {args.size} | '
                f'{medians["baseline"]:.3f} s | {medians["candidate"]:.3f} s | '
                f'**{speedup:.2f}x** |\n\n'
-               + timing_note + 'Speedup = main / PR branch; below 1x means slower. '
+               + timing_note + 'Speedup = baseline / candidate; below 1x means slower. '
                'Every measured candidate PNG exactly matches the baseline PNG.\n\n'
-               f'Baseline main: `{refs["baseline"]}`.\n\n'
+               f'Baseline: `{refs["baseline"]}`.\n\n'
                f'Candidate: `{refs["candidate"]}`.\n\n'
                f'Machine: `{metadata["hostname"]}`. Compiler: `{metadata["compiler"]}`.\n')
     (output / 'summary.md').write_text(summary)

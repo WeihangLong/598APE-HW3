@@ -5,12 +5,22 @@ Use the repository runner registered to `WeihangLong/598APE-HW3`, with labels
 `~/actions-runner-hw3/run.sh` running in tmux or as a service.
 
 Open **Actions > School VM benchmark > Run workflow**, using the workflow from
-`main`. Choose a candidate branch and size `1001`. Each version is timed once by
-default. A push to main that changes the benchmark or source automatically runs
-`optimize/row-bounds` and `optimize/batched-toppling` sequentially. Non-draft,
-same-repository PRs also trigger their own comparison. Draft PRs skip benchmarks.
-The original combined scan, mirror, queue, and static-grid branches are preserved;
-choose them manually when needed. New main deployments supersede older runs.
+`main`. Select a candidate and size `1001`. Each candidate is timed once by
+default. Main now contains row bounds, batched toppling, and mirroring. The
+workflow has no automatic main-push benchmarks; integrating a feature does not
+silently remeasure every old experiment against a changed reference.
+Non-draft, same-repository PRs can still trigger comparisons.
+
+The default reference is the version each experiment started from:
+
+| Candidate | Reference |
+|---|---|
+| Row bounds only, batched toppling only, queue, combined scan | Original baseline `15fe837` |
+| Mirroring, final main | Combined row bounds and batching `d6ffed5` |
+| Static grid | Dynamic-grid mirror version `73a1067` |
+
+The manual `baseline` input can override this with an exact commit or ref.
+Original experiment branches and their measured commits remain available.
 
 ## Reusing the baseline
 
@@ -37,13 +47,13 @@ The artifact includes raw samples, metadata, and the checked candidate PNG.
 The comment records both exact commit IDs and skips stale PR heads.
 Compilation and PNG comparison are outside the timed interval. All builds use
 `gcc -O3 -g -Werror sandpile.c -lm -o sandpile.exe` in temporary directories.
-Only matching output produces a speedup report. Main's computation remains the
-instructor baseline; optimization branches stay separate.
+Only matching output produces a speedup report. Main contains the three successful optimizations; original experiment
+branches stay separate. The original baseline is still available at `15fe837`.
 
 Local example after fetching the branches:
 
 ```bash
-python3 scripts/benchmark.py --baseline origin/main \
+python3 scripts/benchmark.py --baseline 15fe837 \
   --candidate origin/optimize/row-bounds --size 31 --rounds 1 \
   --baseline-cache-dir /tmp/hw3-baseline-cache --output /tmp/hw3-results
 ```
