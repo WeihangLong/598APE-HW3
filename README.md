@@ -1,13 +1,6 @@
 # CS598APE HW3
 
-For Docker builds and reproduction of all optimization experiments, see
-[docker/README.md](docker/README.md). From the repository root:
-
-```bash
-./dockerbuild.sh
-./dockerrun.sh --size 31       # Check the setup first.
-./dockerrun.sh --size 1001     # Run the homework experiments.
-```
+For Docker setup and experiment commits, see [docker/README.md](docker/README.md).
 
 This repository contains code for homework 3 of CS598APE. It is relatively
 simple in comparison to HW1 and HW2 to ensure you have enough time to work on
