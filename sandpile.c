@@ -72,30 +72,80 @@ static void render(char *filename) {
   free(pixels);
 }
 
-static void stabilize() {
-  int changed = 0;
+// static void stabilize() {
+//   int changed = 0;
+//   do {
+//     changed = 0;
+//     for (int i = 0; i < N; ++i) {
+//       for (int j = 0; j <= MAX(i, N - 1 - i); ++j) {
+//         if ((i - N / 2) * (i - N / 2) + (j - N / 2) * (j - N / 2) <=
+//             (N / 2) * (N / 2)) {
+//           if (grid[i][j] < 4)
+//             continue;
+//           changed = 1; // topple it
+//           grid[i][j] -= 4;
+//           if (i > 0)
+//             grid[i - 1][j]++;
+//           if (j > 0)
+//             grid[i][j - 1]++;
+//           if (i < N - 1)
+//             grid[i + 1][j]++;
+//           if (j < N - 1)
+//             grid[i][j + 1]++;
+//         }
+//       }
+//     }
+//   } while (changed);
+// }
+
+static void stabilize(void) {
+  int *lo = malloc((size_t)N * sizeof(*lo));
+  int *hi = malloc((size_t)N * sizeof(*hi));
+  if (!lo || !hi)
+    die("malloc failed for row bounds");
+
+  int64_t center = N / 2;
+  int64_t radius_squared = center * center;
+  for (int i = 0; i < N; ++i) {
+    lo[i] = N;
+    hi[i] = -1;
+    int64_t di = (int64_t)i - center;
+    for (int j = 0; j <= MAX(i, N - 1 - i); ++j) {
+      int64_t dj = (int64_t)j - center;
+      if (di * di + dj * dj <= radius_squared) {
+        if (lo[i] == N)
+          lo[i] = j;
+        hi[i] = j;
+      }
+    }
+  }
+
+  int changed;
   do {
     changed = 0;
     for (int i = 0; i < N; ++i) {
-      for (int j = 0; j <= MAX(i, N - 1 - i); ++j) {
-        if ((i - N / 2) * (i - N / 2) + (j - N / 2) * (j - N / 2) <=
-            (N / 2) * (N / 2)) {
-          if (grid[i][j] < 4)
-            continue;
-          changed = 1; // topple it
-          grid[i][j] -= 4;
-          if (i > 0)
-            grid[i - 1][j]++;
-          if (j > 0)
-            grid[i][j - 1]++;
-          if (i < N - 1)
-            grid[i + 1][j]++;
-          if (j < N - 1)
-            grid[i][j + 1]++;
-        }
+      for (int j = lo[i]; j <= hi[i]; ++j) {
+        if (grid[i][j] < 4)
+          continue;
+
+        changed = 1;
+        int q = grid[i][j] / 4;
+        grid[i][j] %= 4;
+
+        if (i > 0)
+          grid[i - 1][j] += q;
+        if (j > 0)
+          grid[i][j - 1] += q;
+        if (i < N - 1)
+          grid[i + 1][j] += q;
+        if (j < N - 1)
+          grid[i][j + 1] += q;
       }
     }
   } while (changed);
+
+  free(lo);
+  free(hi);
 }
 
 void find_identity() {
