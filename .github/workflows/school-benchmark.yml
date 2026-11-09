@@ -43,10 +43,10 @@ permissions:
 # Do not overlap performance tests from this repository on the school VM.
 concurrency:
   group: hw3-school-benchmark
-  # While configuring CI, supersede stale infrastructure checks (including
-  # jobs queued before the runner existed). Actual performance comparisons
-  # remain serialized and do not cancel one another.
-  cancel-in-progress: ${{ github.event_name == 'pull_request' && github.head_ref == 'ci/school-runner' }}
+  # A new main deployment supersedes checks against an obsolete baseline,
+  # and CI setup updates supersede stale setup checks. Individual PR/manual
+  # benchmark requests remain serialized without cancelling one another.
+  cancel-in-progress: ${{ github.event_name == 'push' || (github.event_name == 'pull_request' && github.head_ref == 'ci/school-runner') }}
 
 jobs:
   benchmark:
