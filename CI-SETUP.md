@@ -15,12 +15,14 @@ The default reference is the version each experiment started from:
 
 | Candidate | Reference |
 |---|---|
-| Row bounds only, batched toppling only, queue, combined scan | Original baseline `15fe837` |
-| Mirroring, final main | Combined row bounds and batching `d6ffed5` |
+| Queue, combined scan | Original baseline `15fe837` |
+| Final main (includes mirroring) | Combined row bounds and batching `d6ffed5` |
 | Static grid | Dynamic-grid mirror version `73a1067` |
 
 The manual `baseline` input can override this with an exact commit or ref.
-Original experiment branches and their measured commits remain available.
+Merged optimization branches have been deleted. Their measured commits remain
+in main's history; use the commit IDs in `docker/README.md` for those tests.
+The unmerged queue, combined-scan, and static-grid branches remain available.
 
 ## Reusing the baseline
 
@@ -54,6 +56,6 @@ Local example after fetching the branches:
 
 ```bash
 python3 scripts/benchmark.py --baseline 15fe837 \
-  --candidate origin/optimize/row-bounds --size 31 --rounds 1 \
+  --candidate 196cb4e --size 31 --rounds 1 \
   --baseline-cache-dir /tmp/hw3-baseline-cache --output /tmp/hw3-results
 ```
