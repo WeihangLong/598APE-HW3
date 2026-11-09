@@ -26,6 +26,11 @@ organization-scoped `Ringo-Leo` runner group `598ape`.
    download raw samples, machine/compiler metadata, and the checked PNG from
    the artifact. No additional GitHub token is needed.
 
+Merging the CI configuration into main also triggers sequential comparisons
+of all three experiment branches, posting each result to its respective PR.
+Later pushes to main that change benchmark infrastructure or source repeat
+these comparisons. The matrix is serial, and artifacts are separate per version.
+
 Optimization PR checks and manual comparisons default to size `1001` and three
 runs per version. The CI-only PR uses size `251` to validate infrastructure.
 Repository variables `HW3_GRID_SIZE` and `HW3_ROUNDS` can override defaults;

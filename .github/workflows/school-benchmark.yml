@@ -1,6 +1,14 @@
 name: School VM benchmark
 
 on:
+  push:
+    branches: [main]
+    paths:
+      - sandpile.c
+      - stb_image_write.h
+      - scripts/benchmark.py
+      - scripts/report-performance.js
+      - .github/workflows/school-benchmark.yml
   pull_request:
     branches: [main]
     paths:
@@ -42,9 +50,16 @@ concurrency:
 
 jobs:
   benchmark:
-    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.head.repo.full_name == github.repository
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    strategy:
+      max-parallel: 1
+      fail-fast: false
+      matrix:
+        candidate: ${{ fromJSON(github.event_name == 'push' && '["optimize/mirror-scan-bulk","optimize/scan-bulk","experiment/queue-bulk"]' || '[""]') }}
     runs-on: [self-hosted, Linux, 598ape-hw3]
     timeout-minutes: 180
+    env:
+      BENCHMARK_INDEX: ${{ strategy.job-index }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -60,7 +75,7 @@ jobs:
       - name: Compare baseline and candidate
         env:
           BASELINE_REF: origin/main
-          CANDIDATE_REF: ${{ github.event.pull_request.head.sha || format('origin/{0}', inputs.candidate) }}
+          CANDIDATE_REF: ${{ github.event.pull_request.head.sha || format('origin/{0}', inputs.candidate || matrix.candidate) }}
           # The CI-only PR is a short infrastructure smoke test. Optimization
           # PRs and manual runs benchmark the actual homework size by default.
           GRID_SIZE: ${{ inputs.size || vars.HW3_GRID_SIZE || (github.head_ref == 'ci/school-runner' && '251') || '1001' }}
@@ -71,18 +86,18 @@ jobs:
             --candidate "$CANDIDATE_REF" \
             --size "$GRID_SIZE" \
             --rounds "$ROUNDS" \
-            --output "$RUNNER_TEMP/hw3-results-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
+            --output "$RUNNER_TEMP/hw3-results-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT-$BENCHMARK_INDEX"
 
       - name: Publish job summary
         if: success()
-        run: cat "$RUNNER_TEMP/hw3-results-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT/summary.md" >> "$GITHUB_STEP_SUMMARY"
+        run: cat "$RUNNER_TEMP/hw3-results-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT-$BENCHMARK_INDEX/summary.md" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Report speedup on the pull request
         if: success()
         uses: actions/github-script@v7
         env:
-          RESULTS_DIR: ${{ runner.temp }}/hw3-results-${{ github.run_id }}-${{ github.run_attempt }}
-          CANDIDATE_BRANCH: ${{ inputs.candidate }}
+          RESULTS_DIR: ${{ runner.temp }}/hw3-results-${{ github.run_id }}-${{ github.run_attempt }}-${{ strategy.job-index }}
+          CANDIDATE_BRANCH: ${{ inputs.candidate || matrix.candidate }}
         with:
           script: |
             const report = require('./scripts/report-performance.js');
@@ -92,6 +107,6 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: hw3-benchmark-${{ github.run_id }}-${{ github.run_attempt }}
-          path: ${{ runner.temp }}/hw3-results-${{ github.run_id }}-${{ github.run_attempt }}/
+          name: hw3-benchmark-${{ github.run_id }}-${{ github.run_attempt }}-${{ strategy.job-index }}
+          path: ${{ runner.temp }}/hw3-results-${{ github.run_id }}-${{ github.run_attempt }}-${{ strategy.job-index }}/
           if-no-files-found: ignore
