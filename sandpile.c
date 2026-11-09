@@ -72,30 +72,126 @@ static void render(char *filename) {
   free(pixels);
 }
 
-static void stabilize() {
-  int changed = 0;
-  do {
-    changed = 0;
-    for (int i = 0; i < N; ++i) {
-      for (int j = 0; j <= MAX(i, N - 1 - i); ++j) {
-        if ((i - N / 2) * (i - N / 2) + (j - N / 2) * (j - N / 2) <=
-            (N / 2) * (N / 2)) {
-          if (grid[i][j] < 4)
-            continue;
-          changed = 1; // topple it
-          grid[i][j] -= 4;
-          if (i > 0)
-            grid[i - 1][j]++;
-          if (j > 0)
-            grid[i][j - 1]++;
-          if (i < N - 1)
-            grid[i + 1][j]++;
-          if (j < N - 1)
-            grid[i][j + 1]++;
-        }
+// static void stabilize() {
+//   int changed = 0;
+//   do {
+//     changed = 0;
+//     for (int i = 0; i < N; ++i) {
+//       for (int j = 0; j <= MAX(i, N - 1 - i); ++j) {
+//         if ((i - N / 2) * (i - N / 2) + (j - N / 2) * (j - N / 2) <=
+//             (N / 2) * (N / 2)) {
+//           if (grid[i][j] < 4)
+//             continue;
+//           changed = 1; // topple it
+//           grid[i][j] -= 4;
+//           if (i > 0)
+//             grid[i - 1][j]++;
+//           if (j > 0)
+//             grid[i][j - 1]++;
+//           if (i < N - 1)
+//             grid[i + 1][j]++;
+//           if (j < N - 1)
+//             grid[i][j + 1]++;
+//         }
+//       }
+//     }
+//   } while (changed);
+// }
+
+static void stabilize(void) {
+  typedef struct {
+    int i;
+    int j;
+  } Cell;
+
+  size_t n = (size_t)N;
+  size_t capacity = n * n;
+
+  unsigned char *active = calloc(capacity, sizeof(unsigned char));
+  unsigned char *queued = calloc(capacity, sizeof(unsigned char));
+  Cell *queue = malloc(capacity * sizeof(*queue));
+
+  if (!active || !queued || !queue)
+    die("malloc failed for stabilization");
+
+  size_t head = 0;
+  size_t tail = 0;
+  size_t count = 0;
+
+  int64_t center = N / 2;
+  int64_t radius_squared = center * center;
+
+  for (int i = 0; i < N; ++i) {
+    for (int j = 0; j <= MAX(i, N - 1 - i); ++j) {
+      int64_t di = (int64_t)i - center;
+      int64_t dj = (int64_t)j - center;
+
+      if (di * di + dj * dj > radius_squared)
+        continue;
+
+      size_t id = (size_t)i * n + (size_t)j;
+      active[id] = 1;
+
+      if (grid[i][j] >= 4) {
+        queue[tail] = (Cell){i, j};
+        if (++tail == capacity)
+          tail = 0;
+        ++count;
+        queued[id] = 1;
       }
     }
-  } while (changed);
+  }
+
+  //Process the node in the queue until it is empty
+  while (count > 0) {
+    Cell cell = queue[head];
+    if (++head == capacity)
+      head = 0;
+    --count;
+    int i = cell.i;
+    int j = cell.j;
+    size_t id = (size_t)i * n + (size_t)j;
+    queued[id] = 0;
+
+    // 一次执行当前格子所有可以合法进行的坍塌
+    int q = grid[i][j] / 4;
+    grid[i][j] %= 4;
+
+    // 收集数组范围内的四个邻居
+    Cell neighbors[4];
+    int neighbor_count = 0;
+
+    if (i > 0)
+      neighbors[neighbor_count++] = (Cell){i - 1, j};
+    if (j > 0)
+      neighbors[neighbor_count++] = (Cell){i, j - 1};
+    if (i < N - 1)
+      neighbors[neighbor_count++] = (Cell){i + 1, j};
+    if (j < N - 1)
+      neighbors[neighbor_count++] = (Cell){i, j + 1};
+
+    for (int k = 0; k < neighbor_count; ++k) {
+      int ni = neighbors[k].i;
+      int nj = neighbors[k].j;
+      size_t neighbor = (size_t)ni * n + (size_t)nj;
+
+      grid[ni][nj] += q;
+
+      if (active[neighbor] &&
+          grid[ni][nj] >= 4 &&
+          !queued[neighbor]) {
+        queue[tail] = neighbors[k];
+        if (++tail == capacity)
+          tail = 0;
+        ++count;
+        queued[neighbor] = 1;
+      }
+    }
+  }
+
+  free(queue);
+  free(queued);
+  free(active);
 }
 
 void find_identity() {
