@@ -55,7 +55,7 @@ jobs:
       max-parallel: 1
       fail-fast: false
       matrix:
-        candidate: ${{ fromJSON(github.event_name == 'push' && '["optimize/mirror-scan-bulk","optimize/scan-bulk","experiment/queue-bulk"]' || '[""]') }}
+        candidate: ${{ fromJSON(github.event_name == 'push' && '["optimize/mirror-scan-bulk","optimize/scan-bulk","experiment/queue-bulk"]' || '["single-comparison"]') }}
     runs-on: [self-hosted, Linux, 598ape-hw3]
     timeout-minutes: 180
     env:
