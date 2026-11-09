@@ -19,7 +19,8 @@ static void die(const char *s) {
 }
 
 int N = 801;
-int **grid;
+#define GRID_CAPACITY 1001
+static int grid[GRID_CAPACITY][GRID_CAPACITY];
 
 // you can also use this function to debug print your sandpile
 static void render(char *filename) {
@@ -197,19 +198,12 @@ int main(int argc, char **argv) {
   if (errno || argv[1][0] < '0' || argv[1][0] > '9' || *end || !parsed ||
       parsed > INT32_MAX)
     die("grid size must be a positive int");
+  if (parsed > GRID_CAPACITY)
+    die("static-grid build supports sizes up to 1001");
   N = (int)parsed;
-
-  grid = (int **)malloc(N * sizeof(int *));
-  for (int i = 0; i < N; ++i) {
-    grid[i] = (int *)malloc(N * sizeof(int));
-  }
 
   find_identity();
 
   render("identity.png");
-  for (int i = 0; i < N; ++i) {
-    free(grid[i]);
-  }
-  free(grid);
   return EXIT_SUCCESS;
 }
